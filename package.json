@@ -1,0 +1,41 @@
+{
+  "name": "rails-doctor",
+  "version": "0.1.0",
+  "description": "Your agent writes bad Rails. This catches it. A static-analysis CLI for Ruby on Rails that scores your codebase 0-100 and installs as an agent skill for Claude Code, Codex, Cursor, and Copilot.",
+  "keywords": [
+    "rails",
+    "ruby",
+    "static-analysis",
+    "linter",
+    "37signals",
+    "claude-code",
+    "codex",
+    "cursor",
+    "agent-skill"
+  ],
+  "homepage": "https://github.com/artisanscompany/rails-doctor",
+  "bugs": {
+    "url": "https://github.com/artisanscompany/rails-doctor/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/artisanscompany/rails-doctor.git"
+  },
+  "license": "MIT",
+  "author": "ArtisansCompany",
+  "bin": {
+    "rails-doctor": "bin/rails-doctor.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/",
+    "exe/",
+    "lib/",
+    "skills/",
+    "README.md",
+    "LICENSE",
+    ".rails-doctor.yml.example"
+  ]
+}

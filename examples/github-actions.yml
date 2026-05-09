@@ -1,0 +1,25 @@
+# Example GitHub Actions workflow for using rails-doctor in CI.
+# Save this as .github/workflows/rails-doctor.yml in your Rails project.
+
+name: rails-doctor
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  rails-doctor:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: artisanscompany/rails-doctor@v0
+        with:
+          path: "."
+          min-score: "75"
+          with-external: "auto"
+          comment-on-pr: "true"

@@ -1,0 +1,60 @@
+# rails-doctor configuration. Drop this file (renamed to .rails-doctor.yml)
+# at the root of your Rails project to customize behavior.
+
+# Preset: shifts default severities globally.
+#   default  - shipped severities
+#   strict   - promote warnings to errors
+#   omakase  - 37signals defaults, no leniency
+#   minimal  - warnings demoted to info (mostly silent)
+preset: default
+
+# Allow tokens silence groups of rules tied to specific stack choices.
+# allow:
+#   - sidekiq          # we use Sidekiq, don't suggest Solid Queue
+#   - resque
+#   - delayed_job
+#   - devise
+#   - dry              # dry-rb stack
+#   - draper
+#   - kaminari
+#   - will_paginate
+#   - simple_form
+#   - slim
+#   - haml
+#   - view_component
+#   - inertia-react    # frontend uses Inertia (auto-detected from Gemfile)
+#   - rspec            # we use RSpec (auto-detected from spec/)
+#   - services         # we keep app/services for external API adapters
+#   - pundit           # we use Pundit/policies
+
+# Disable specific rules outright (rule IDs from `rails-doctor rules`):
+# disable:
+#   - controllers/non-restful-action
+#   - models/concern-too-large
+
+# Severity overrides per rule:
+# severity:
+#   models/concern-too-large: error
+#   omakase/banned-gem: info
+
+# Thresholds:
+# thresholds:
+#   concern_max_loc: 150
+#   concern_min_loc: 5
+#   controller_max_loc: 200
+#   model_max_loc: 400
+#   controller_max_actions: 7
+
+# External-tool wrappers. By default, any tool whose gem is in your Gemfile
+# runs automatically. Set `enabled: false` to skip them all.
+# external:
+#   enabled: true
+#   tools:
+#     - brakeman
+#     - bundler-audit
+#     - active_record_doctor
+#     - rubocop
+#     - reek
+#     - debride
+#     - traceroute
+#     - rubycritic

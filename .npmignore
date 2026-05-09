@@ -1,0 +1,9 @@
+test/
+tmp/
+.github/
+examples/
+.rails-doctor.yml.example
+Gemfile
+Gemfile.lock
+*.gem
+.DS_Store

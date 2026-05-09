@@ -1,0 +1,94 @@
+name: "rails-doctor"
+description: "Static-analysis health check for Ruby on Rails projects. Scores your codebase 0-100 and posts findings as a PR comment."
+author: "ArtisansCompany"
+branding:
+  icon: "activity"
+  color: "red"
+
+inputs:
+  path:
+    description: "Path to the Rails project root."
+    required: false
+    default: "."
+  ruby-version:
+    description: "Ruby version to use. Defaults to .ruby-version or 3.3."
+    required: false
+    default: ""
+  min-score:
+    description: "Fail the job if the rails-doctor score is below this threshold (0-100)."
+    required: false
+    default: ""
+  with-external:
+    description: "Run external tool wrappers (brakeman, bundler-audit, etc.). One of: auto | all | off."
+    required: false
+    default: "auto"
+  strict:
+    description: "Promote warnings to errors."
+    required: false
+    default: "false"
+  comment-on-pr:
+    description: "Post a Markdown summary as a PR comment (requires pull_request event + GITHUB_TOKEN)."
+    required: false
+    default: "true"
+
+outputs:
+  score:
+    description: "The overall health score (0-100)."
+    value: ${{ steps.scan.outputs.score }}
+  grade:
+    description: "Great | Needs work | Critical."
+    value: ${{ steps.scan.outputs.grade }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version || '3.3' }}
+        bundler-cache: true
+
+    - name: Set up Node
+      uses: actions/setup-node@v4
+      with:
+        node-version: "20"
+
+    - name: Run rails-doctor
+      id: scan
+      shell: bash
+      run: |
+        set -o pipefail
+        FLAGS=""
+        if [ "${{ inputs.strict }}" = "true" ]; then FLAGS="$FLAGS --strict"; fi
+        FLAGS="$FLAGS --with-external ${{ inputs.with-external }}"
+
+        npx -y rails-doctor@latest scan "${{ inputs.path }}" $FLAGS --json > rails-doctor.json
+        npx -y rails-doctor@latest scan "${{ inputs.path }}" $FLAGS --markdown > rails-doctor.md
+        SCORE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('rails-doctor.json','utf8')).score)")
+        GRADE=$(node -e "console.log(JSON.parse(require('fs').readFileSync('rails-doctor.json','utf8')).grade)")
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        cat rails-doctor.md
+        if [ -n "${{ inputs.min-score }}" ] && [ "$SCORE" -lt "${{ inputs.min-score }}" ]; then
+          echo "::error::rails-doctor score $SCORE is below the minimum ${{ inputs.min-score }}"
+          exit 1
+        fi
+
+    - name: Comment on PR
+      if: ${{ inputs.comment-on-pr == 'true' && github.event_name == 'pull_request' }}
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const body = fs.readFileSync('rails-doctor.md', 'utf8');
+          const { owner, repo } = context.repo;
+          const issue_number = context.issue.number;
+          const marker = '<!-- rails-doctor -->';
+          const fullBody = `${marker}\n${body}`;
+          const comments = await github.rest.issues.listComments({ owner, repo, issue_number });
+          const existing = comments.data.find(c => c.body && c.body.includes(marker));
+          if (existing) {
+            await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body: fullBody });
+          } else {
+            await github.rest.issues.createComment({ owner, repo, issue_number, body: fullBody });
+          }

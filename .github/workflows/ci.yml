@@ -1,0 +1,28 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ruby: ["3.1", "3.2", "3.3", "3.4"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: ${{ matrix.ruby }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - run: node bin/rails-doctor.js version
+      - run: node bin/rails-doctor.js rules
+      - name: Self-test on a generated Rails app
+        run: |
+          gem install rails --no-document
+          rails new /tmp/sample --skip-bundle --skip-test --skip-system-test
+          node bin/rails-doctor.js scan /tmp/sample --with-external off --no-color

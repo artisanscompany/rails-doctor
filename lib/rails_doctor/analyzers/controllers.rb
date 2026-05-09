@@ -1,0 +1,67 @@
+# frozen_string_literal: true
+
+require_relative "../ast"
+
+module RailsDoctor
+  module Analyzers
+    class Controllers < Base
+      RESTFUL_ACTIONS = %w[index show new create edit update destroy].freeze
+
+      private
+
+      def analyze(diagnostics)
+        return unless project.has_dir?("app/controllers")
+
+        Dir.glob(project.path("app/controllers/**/*.rb").to_s).each do |file|
+          next if file.include?("/concerns/")
+          rel = relative(file)
+          tree = AST.parse_file(file)
+          klass = AST.primary_class(tree)
+
+          if rel == "app/controllers/application_controller.rb"
+            check_application_controller(diagnostics, klass, file)
+          elsif klass
+            public_actions = AST.public_instance_methods(klass)
+            non_rest = public_actions - RESTFUL_ACTIONS
+            unless non_rest.empty?
+              emit(diagnostics, :"controllers/non-restful-action",
+                message: "#{rel.sub('app/controllers/', '')} defines non-RESTful public action(s): #{non_rest.join(', ')}. Extract each to a namespaced controller (e.g. `Posts::PublicationsController#create`).",
+                file: rel
+              )
+            end
+
+            check_before_actions(diagnostics, klass, rel)
+          end
+
+          loc = file_loc(file)
+          if loc > threshold("controller_max_loc")
+            emit(diagnostics, :"controllers/fat-controller",
+              message: "#{rel.sub('app/controllers/', '')} is #{loc} lines (threshold #{threshold('controller_max_loc')}). Extract behavior to model methods, concerns, or split the resource.",
+              file: rel
+            )
+          end
+        end
+      end
+
+      def check_application_controller(diagnostics, klass, file)
+        loc = file_loc(file)
+        before_actions = AST.macro_count(klass, :before_action)
+        if loc > 30 || before_actions > 4
+          emit(diagnostics, :"controllers/heavy-application-controller",
+            message: "ApplicationController is #{loc} LOC with #{before_actions} before_actions. Move responsibilities into controller concerns.",
+            file: relative(file)
+          )
+        end
+      end
+
+      def check_before_actions(diagnostics, klass, rel)
+        before_actions = AST.macro_count(klass, :before_action)
+        return if before_actions <= 5
+        emit(diagnostics, :"controllers/before-action-overuse",
+          message: "#{rel.sub('app/controllers/', '')} has #{before_actions} before_actions. Excessive filtering hides intent — consider consolidating into one or moving logic into the action.",
+          file: rel
+        )
+      end
+    end
+  end
+end
