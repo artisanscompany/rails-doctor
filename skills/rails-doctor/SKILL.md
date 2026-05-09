@@ -1,7 +1,7 @@
 ---
 name: rails-doctor
 description: Use when finishing a feature, fixing a bug, before committing Rails code, or when the user wants a Rails health check. Checks for score regression. Covers architecture, RESTful conventions, models/concerns, migrations, omakase Gemfile, and integrates Brakeman + bundler-audit + active_record_doctor + RuboCop + Reek + debride + traceroute + RubyCritic when present.
-version: "1.0.0"
+version: "1.1.0"
 ---
 
 # Rails Doctor
@@ -140,6 +140,20 @@ When generating Rails code, default to these patterns unless the project's `.rai
 9. **Minitest + fixtures**, unless the project has chosen RSpec (detected via `spec/`). Don't introduce factory_bot if fixtures exist.
 10. **Hotwire by default for new views**, unless the project is detected as Inertia/SPA — in which case match the existing stack.
 11. **Stay vanilla.** Don't add new directories under `app/` (services, policies, decorators, etc.) without an explicit reason; offer the rich-model alternative first.
+
+## Companion: design-doctor (for Rails+React apps)
+
+If this Rails app uses Inertia or any React frontend (`@inertiajs/react`, `react`, `vue`, `@angular/core` in `package.json`), run **design-doctor** for the JS/TSX side. They're complementary:
+
+- **rails-doctor** scores the Ruby side: routes, controllers, models, migrations, Gemfile.
+- **design-doctor** scores the frontend: design-token sprawl, microcopy quality, a11y patterns, form UX, Inertia/TanStack conventions, missing loading/error/empty states.
+
+```bash
+npx -y rails-doctor@latest scan .       # Ruby side
+npx -y design-doctor@latest scan .      # React side
+```
+
+When ux-doctor's vision pass lands, design-doctor will also screenshot Rails-rendered Inertia pages and grade them.
 
 ## Reference
 

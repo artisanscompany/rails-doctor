@@ -69,6 +69,9 @@ module RailsDoctor
         emit_step("Detecting jobs adapter. Found #{info[:jobs]}.")
         emit_step("Detecting asset pipeline. Found #{info[:asset_pipeline]}.")
         emit_step("Found #{result.scanned_files} source files.")
+        if %w[inertia spa-react-vue].include?(info[:frontend])
+          emit_step("Companion: design-doctor (run `npx -y design-doctor scan .` for the React side).")
+        end
         puts ""
       end
 
