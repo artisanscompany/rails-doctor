@@ -127,6 +127,28 @@ module RailsDoctor
             file: rel
           )
         end
+
+        # has_many without `dependent:` — orphan-row risk on parent destroy.
+        source.scan(/^\s*has_many\s+:(\w+)([^\n]*)$/).each do |name, rest|
+          next if rest.include?("through:")
+          next if rest.include?("dependent:")
+          emit(diagnostics, :"models/has-many-without-dependent",
+            message: "has_many :#{name} has no `dependent:` — destroying #{model_name(file)} silently leaves orphan rows.",
+            file: rel
+          )
+        end
+
+        # Scope as class method — `def self.<name>` that returns a relation.
+        source.scan(/^\s*def\s+self\.(\w+)[^\n]*\n\s*(.+?)^\s*end/m).each do |name, body|
+          # Heuristic: body opens with `where(`, `order(`, `joins(`, `includes(`,
+          # `select(`, or returns the class via `all.where(...)`. Hard to be
+          # more precise without full evaluation, so we keep severity low.
+          next unless body.match?(/\A\s*(?:where|order|joins|includes|select|distinct|group|limit|offset|all)\b/)
+          emit(diagnostics, :"models/scope-as-class-method",
+            message: "`def self.#{name}` returns a relation — express as `scope :#{name}, -> { ... }`.",
+            file: rel
+          )
+        end
       end
 
       def schema_lacks_unique_for?(file, column)

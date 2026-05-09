@@ -12,6 +12,7 @@ require_relative "analyzers/tests"
 require_relative "analyzers/stack"
 require_relative "analyzers/i18n"
 require_relative "analyzers/hotwire"
+require_relative "analyzers/security"
 
 require_relative "wrappers/base"
 require_relative "wrappers/brakeman"
@@ -38,7 +39,8 @@ module RailsDoctor
       ["tests",        Analyzers::Tests],
       ["stack",        Analyzers::Stack],
       ["i18n",         Analyzers::I18n],
-      ["hotwire",      Analyzers::Hotwire]
+      ["hotwire",      Analyzers::Hotwire],
+      ["security",     Analyzers::Security]
     ].freeze
 
     WRAPPERS = {

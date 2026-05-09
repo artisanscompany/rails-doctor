@@ -272,6 +272,42 @@ module RailsDoctor
     default_severity: :warning,
     fix: "Stimulus expects `foo_bar_controller.js` ↔ `data-controller=\"foo-bar\"`. Rename one to match."
 
+  R.define :"security/secret-in-code",
+    title: "API key, token, or private key found in source",
+    category: :security,
+    default_severity: :error,
+    fix: "Move to Rails encrypted credentials (`bin/rails credentials:edit`) or an env var. Rotate the leaked secret."
+
+  R.define :"security/skip-csrf",
+    title: "CSRF verification skipped on a non-API controller",
+    category: :security,
+    default_severity: :warning,
+    fix: "Restrict skip_before_action :verify_authenticity_token to API controllers using token auth, or remove it."
+
+  R.define :"security/permit-all-params",
+    title: "params.permit! bypasses strong parameters",
+    category: :security,
+    default_severity: :error,
+    fix: "List the allowed attributes explicitly: `params.require(:foo).permit(:a, :b)`."
+
+  R.define :"security/raw-sql-interpolation",
+    title: "SQL string interpolation — possible injection",
+    category: :security,
+    default_severity: :warning,
+    fix: "Use placeholders: `where(\"name = ?\", value)` or named binds `where(\"name = :n\", n: value)`."
+
+  R.define :"models/has-many-without-dependent",
+    title: "has_many without `dependent:` option",
+    category: :models,
+    default_severity: :info,
+    fix: "Decide what happens when the parent is destroyed: dependent: :destroy / :destroy_async / :nullify / :restrict_with_error."
+
+  R.define :"models/scope-as-class-method",
+    title: "Scope expressed as `def self.<name>` instead of `scope`",
+    category: :models,
+    default_severity: :info,
+    fix: "Use `scope :name, -> { ... }`. It chains as expected, returns a relation lazily, and is the 37signals convention."
+
   R.define :"hotwire/turbo-frame-id-naming",
     title: "Turbo frame id is hardcoded instead of derived from a record",
     category: :hotwire,
