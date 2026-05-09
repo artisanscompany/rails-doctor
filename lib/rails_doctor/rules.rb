@@ -332,6 +332,18 @@ module RailsDoctor
     default_severity: :info,
     fix: "Pass `props: { … }` explicitly so the page's data contract is visible at the call site."
 
+  R.define :"tests/factory-create-overuse",
+    title: "Test relies on create(:…) where build_stubbed would be faster",
+    category: :tests,
+    default_severity: :info,
+    fix: "Replace create(:foo) with build_stubbed(:foo) when the test doesn't need DB persistence — typically 10–100× faster."
+
+  R.define :"perf/n-plus-one-loop",
+    title: "Controller loops over a collection and reaches into associations",
+    category: :performance,
+    default_severity: :warning,
+    fix: "Add `.includes(:assoc)` / `.preload(:assoc)` / `.eager_load(:assoc)` on the collection so the association loads in one query, not N+1."
+
   R.define :"models/has-many-without-dependent",
     title: "has_many without `dependent:` option",
     category: :models,

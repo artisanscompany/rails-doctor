@@ -40,6 +40,33 @@ module RailsDoctor
               file: rel
             )
           end
+
+          check_n_plus_one_loop(diagnostics, file, rel)
+        end
+      end
+
+      # Heuristic N+1 detection: a controller method iterates a collection
+      # and accesses an association on each element. We don't try to be
+      # precise — if the result is annotated with `.includes(...)`, `preload`,
+      # or `eager_load` somewhere in the action, we skip.
+      def check_n_plus_one_loop(diagnostics, file, rel)
+        src = File.read(file)
+        # Find lines like `@things.each do |t|` or `things.map { |t| t.foo.bar }`.
+        src.scan(/^(\s*)(@?\w+)\.(?:each|map|collect|find_each)\s*(?:do\s*\|(\w+)\||\{\s*\|(\w+)\|)/m).each do |indent, collection, var1, var2|
+          var = var1 || var2
+          next unless var
+          # Look at the next ~6 lines for `.<var>.<assoc>.<method>` pattern.
+          lines = src.lines
+          lineno = src[0..src.index("#{collection}.")].count("\n") + 1 rescue 1
+          window = lines[lineno - 1, 8]&.join("\n") || ""
+          next unless window.match?(/\b#{var}\.\w+\.\w+/) # association.method
+          next if src.match?(/#{Regexp.escape(collection)}.*?\.(?:includes|preload|eager_load|with)\b/m)
+          emit(diagnostics, :"perf/n-plus-one-loop",
+            message: "#{rel.sub('app/controllers/', '')} iterates #{collection} and reaches into associations on each element. Add `.includes(...)` or `.preload(...)` to prevent N+1 queries.",
+            file: rel,
+            line: lineno
+          )
+          break
         end
       end
 

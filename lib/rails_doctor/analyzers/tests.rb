@@ -17,6 +17,28 @@ module RailsDoctor
 
         check_factories_and_fixtures(diagnostics)
         check_url_over_path(diagnostics)
+        check_factory_create_overuse(diagnostics)
+      end
+
+      # Test files where every assertion is preceded by `create(:foo)` are
+      # slow (every test hits the DB). build_stubbed is faster when you don't
+      # need persistence. We flag files where create() vastly outweighs
+      # build_stubbed and the test count is meaningful.
+      def check_factory_create_overuse(diagnostics)
+        Dir.glob(project.path("{test,spec}/**/*_{test,spec}.rb").to_s).each do |file|
+          src = File.read(file)
+          creates = src.scan(/\bcreate\(:\w+/).size
+          stubbed = src.scan(/\bbuild_stubbed\(:\w+/).size
+          test_count = src.scan(/^\s*(?:test|it|describe|context)\s+["']/).size
+          next if test_count < 3
+          next if creates < 10
+          next if stubbed > 0  # team already knows about build_stubbed
+
+          emit(diagnostics, :"tests/factory-create-overuse",
+            message: "#{relative(file)} uses create() #{creates} times across #{test_count} examples and never build_stubbed(). Stubbed factories are 10–100× faster when you don't need DB persistence.",
+            file: relative(file)
+          )
+        end
       end
 
       def check_factories_and_fixtures(diagnostics)
