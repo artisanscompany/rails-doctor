@@ -1,93 +1,81 @@
 ---
 name: rails-doctor
-description: Use when writing, reviewing, or refactoring Ruby on Rails code. Codifies 37signals/DHH conventions, the Rails Doctrine, and integrates wrappers around Brakeman, RuboCop, RubyCritic, active_record_doctor, bundler-audit, debride, and traceroute. Run `rails-doctor scan .` before committing or when the user asks for a Rails health check.
+description: Use when finishing a feature, fixing a bug, before committing Rails code, or when the user wants a Rails health check. Checks for score regression. Covers architecture, RESTful conventions, models/concerns, migrations, omakase Gemfile, and integrates Brakeman + bundler-audit + active_record_doctor + RuboCop + Reek + debride + traceroute + RubyCritic when present.
+version: "1.0.0"
 ---
 
-# rails-doctor
+# Rails Doctor
 
-Static-analysis CLI for Rails that scores a codebase 0–100 and flags architecture, convention, security, and dead-code issues. Designed around 37signals' Rails philosophy but framework-aware: Inertia/SPA stacks are not flagged for missing Hotwire, Sidekiq is allowed when explicitly configured, etc.
+Scans Ruby on Rails codebases for architecture, convention, security, schema, dead-code, and style issues. Outputs a 0–100 health score. Codifies 37signals/DHH conventions and the Rails Doctrine, with framework auto-detection so Inertia/SPA stacks aren't penalized for skipping Hotwire and stack choices like Sidekiq are opt-in via config.
 
-## When to use
+## After making Rails code changes:
 
-- The user asks for a Rails health check, audit, or score.
-- Before committing Rails code (analogous to react-doctor for React).
-- When refactoring controllers, models, or routes.
-- When a PR touches `Gemfile`, `config/routes.rb`, or `app/{controllers,models,views,jobs}/`.
+Run `npx -y rails-doctor@latest scan . --verbose --diff` and check the score did not regress.
 
-## Invocation
+If the score dropped, fix the regressions before committing.
 
-```bash
-rails-doctor scan .                  # full scan, TTY output
-rails-doctor scan . --json           # machine-readable
-rails-doctor scan . --markdown       # GitHub PR-comment ready
-rails-doctor scan . --strict         # warnings become errors
-rails-doctor scan . --min-score 75   # exit non-zero if below threshold
-rails-doctor explain controllers/non-restful-action
-rails-doctor rules
-```
+## For general cleanup or code improvement:
 
-If `rails-doctor` isn't on PATH:
+Run `npx -y rails-doctor@latest scan . --verbose` (without `--diff`) to scan the full codebase. Fix issues by severity — errors first, then warnings.
+
+## Command
 
 ```bash
-gem exec rails-doctor scan .
-# or add to Gemfile :development group: gem "rails-doctor"
+npx -y rails-doctor@latest scan . --verbose --diff
 ```
 
-## What it checks
+| Flag | Purpose |
+|---|---|
+| `.` | Scan current directory |
+| `--verbose` | Show all rules and full file lists |
+| `--diff [BASE]` | Only scan files changed vs base branch (defaults to `main`) |
+| `--score` | Output only the numeric score (for CI gates) |
+| `--strict` | Promote warnings to errors |
+| `--full` | Show all categories without truncation |
+| `--json` | Machine-readable output |
+| `--markdown` | GitHub PR-comment ready output |
+| `--with-external auto\|all\|off` | Run wrapped tools (brakeman, rubocop, etc.) |
+| `--fail-on error\|warning\|none` | Exit non-zero policy |
+| `--min-score N` | Exit non-zero if score < N |
 
-### Architecture
-- `app/services/`, `app/policies/`, `app/queries/`, `app/forms/`, `app/operations/`, `app/interactors/`, `app/decorators/`, `app/presenters/` flagged. Vanilla Rails fits this behavior into models, concerns, or namespaced controllers.
-- Hexagonal layouts (`app/domain`, `app/application`, `app/infrastructure`) flagged.
+## Distribution
 
-### Gemfile (omakase)
-- **Banned (with `allow:` opt-out)**: sidekiq, delayed_job, resque, devise, draper, trailblazer, interactor, dry-rb stack, view_component, simple_form, slim/haml, kaminari, will_paginate.
-- **Recommended**: propshaft, bootsnap, brakeman, rubocop-rails-omakase.
-- **Dual-stack errors**: sidekiq+solid_queue, sprockets+propshaft, webpacker+propshaft.
-- **Test-framework conflict**: both spec/ and test/ contain tests.
-- **factory_bot dangling**: gem present but no factories directory.
+**Distributed via npm — NOT a Ruby gem.** Do not try `gem install rails-doctor` or `bundle exec rails-doctor`. Use:
 
-### Models & concerns
-- Concern size: 5–150 LOC by default.
-- Concern naming: trait-style (`Searchable`, `Bannable`, `Mentionable`); flag generic names (`Helpers`, `Utils`, `Methods`).
-- Anemic-model detection: associations + validations but zero instance methods.
-- Fat-model detection: model > 400 LOC.
+```bash
+npx -y rails-doctor@latest scan .
+```
 
-### Controllers
-- Only the seven RESTful actions (index/show/new/create/edit/update/destroy). Custom actions get extracted to namespaced controllers (e.g. `Posts::PublicationsController#create` instead of `PostsController#publish`).
-- Fat-controller detection: > 200 LOC.
-- ApplicationController kept thin: < 30 LOC, ≤ 4 before_actions.
+This works on any machine with Node 18+ and Ruby 3.1+ on PATH. The Node wrapper shells out to your system Ruby — no `bundle install`, no Gemfile changes, no gem install required.
 
-### Routes
-- `member do` / `collection do` flagged.
-- "Verbs become nouns": `POST /posts/:id/publish` should be `resource :publication, only: :create`.
+## What it covers (built-in)
 
-### Migrations / DB
-- Foreign-key columns without an explicit index.
-- Boolean state columns (`archived`, `published`, `closed`, etc.) — recommend modeling as a relationship record.
+- **Architecture** — `app/services/`, `app/policies/`, `app/queries/`, `app/decorators/`, hexagonal layouts, deeply-nested concern dirs.
+- **Omakase Gemfile** — banned gems (sidekiq, devise, draper, dry-rb, view_component, kaminari, …) all opt-out via `allow:`; recommended gems; dual-stack (sidekiq+solid_queue, sprockets+propshaft, …).
+- **Models / concerns** — concern size 5–150 LOC, trait-style naming, anemic-model detection (AST), fat-model detection, callback overuse, uniqueness-without-index, `.pluck` over `.map`.
+- **Controllers (AST)** — only the seven RESTful actions, fat controllers, thin ApplicationController, before_action overuse.
+- **Routes** — `member do` / `collection do`, custom verbs (verbs-become-nouns).
+- **Migrations / DB** — foreign-key indexes, foreign-key constraints, boolean state columns, mixed PK types.
+- **Views & Stimulus** — dual bundlers, SPA + importmap drift, missing resource partials, `dom_id` string literals, Stimulus naming and size, API/HTML controller drift.
+- **Stack consistency** — sprockets+propshaft, Solid Queue without Mission Control, vestigial importmap, redis+solid_cache, devise+has_secure_password, STI without type index.
+- **Tests** — spec/+test/ coexistence, factory_bot+fixtures coexistence, `*_url`-over-`*_path`.
 
-### Views & frontend (framework-aware)
-- Multiple JS bundlers configured (importmap + jsbundling + vite).
-- SPA framework + importmap-rails coexisting (importmap is for Hotwire-only stacks).
-- Framework auto-detected from Gemfile and `package.json` so Inertia/React/Vue projects are not penalized for skipping Hotwire.
+## Wrapped tools (opt-in, run automatically when in your Gemfile)
 
-### Stack consistency
-- Sprockets and Propshaft both installed.
-- Solid Queue installed but mission_control-jobs missing.
-- Vestigial `bin/importmap` binstub from a previous stack.
+For full coverage, the user can add these to their Rails project's Gemfile under `:development, :test`:
 
-### Tests
-- Both `test/` and `spec/` contain tests.
-- Optional coverage hooks (off by default).
+```ruby
+gem "brakeman",             require: false   # security
+gem "bundler-audit",        require: false   # vulnerable dependencies
+gem "active_record_doctor", require: false   # schema findings
+gem "rubocop-rails-omakase", require: false  # style (37signals defaults)
+gem "reek",                 require: false   # code smells
+gem "debride",              require: false   # dead methods
+gem "traceroute",           require: false   # unused routes
+gem "rubycritic",           require: false   # aggregate quality grade
+```
 
-### External tool wrappers (opt-in, off by default unless gem is in user's Gemfile)
-- `brakeman` — Rails-specific security (SQLi, XSS, mass assignment, open redirect).
-- `bundler-audit` — vulnerable dependencies.
-- `active_record_doctor` — schema findings (missing indexes, orphaned FKs, etc.).
-- `rubocop` — style and lint (paired well with `rubocop-rails-omakase`).
-- `reek` — code smells.
-- `debride` — possibly unused methods.
-- `traceroute` — unused or undefined route actions.
-- `rubycritic` — aggregate quality grade per file.
+rails-doctor automatically detects which are installed and runs them. They are **all optional** — rails-doctor still produces a useful score with none of them. With `--with-external all`, rails-doctor will try to run any tool whose binary is on PATH.
 
 ## Configuration
 
@@ -96,9 +84,10 @@ Drop a `.rails-doctor.yml` at the project root:
 ```yaml
 preset: default          # default | strict | omakase | minimal
 allow:
-  - sidekiq              # allow Sidekiq alongside other choices
-  - inertia-react        # silence Hotwire-related rules (also auto-detected)
+  - sidekiq              # we use Sidekiq
+  - inertia-react        # frontend uses Inertia (auto-detected)
   - rspec
+  - services             # we keep app/services for external API adapters
 disable:
   - controllers/non-restful-action
 severity:
@@ -112,9 +101,29 @@ external:
   tools: [brakeman, bundler-audit, active_record_doctor]
 ```
 
-## Deployment is not enforced
+## Scoring
 
-rails-doctor is intentionally opinion-free about deployment. Kamal, Heroku, Fly.io, Render, Capistrano, Docker Swarm, Kubernetes — all fine. We don't gate on `config/deploy.yml`.
+| Score | Grade |
+|---|---|
+| 75+ | Great |
+| 50–74 | Needs work |
+| < 50 | Critical |
+
+Scoring is **per-unique-rule** (matching react-doctor):
+- Each unique error rule deducts 1.5 points.
+- Each unique warning rule deducts 0.75 points.
+- One rule firing 100 times still only deducts once — score reflects how *diverse* the breakage is, not how many findings exist.
+
+## Deployment is intentionally not enforced
+
+Kamal, Heroku, Fly, Render, Capistrano, Docker, Kubernetes — all fine. We score code, not your Procfile.
+
+## When to use
+
+- The user asks for a Rails health check, audit, or score.
+- After a feature, before committing — run with `--diff` to check for regression.
+- When refactoring controllers, models, or routes.
+- When a PR touches `Gemfile`, `config/routes.rb`, or `app/{controllers,models,views,jobs}/`.
 
 ## Coding guidance for agents (apply when writing new Rails code)
 
@@ -134,4 +143,4 @@ When generating Rails code, default to these patterns unless the project's `.rai
 
 ## Reference
 
-Run `rails-doctor explain <rule-id>` for any rule. The full rule catalog is at https://github.com/artisanscompany/rails-doctor.
+Run `npx -y rails-doctor@latest explain <rule-id>` for any rule. Full rule catalog: `npx -y rails-doctor@latest rules`. Source: https://github.com/artisanscompany/rails-doctor.

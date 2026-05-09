@@ -3,11 +3,11 @@
 module RailsDoctor
   module Reporters
     class Json
-      attr_reader :project, :diagnostics, :score, :grade
+      attr_reader :project, :result, :score, :grade
 
-      def initialize(project:, diagnostics:, score:, grade:, options: {})
+      def initialize(project:, result:, score:, grade:, options: {})
         @project = project
-        @diagnostics = diagnostics
+        @result = result
         @score = score
         @grade = grade
       end
@@ -25,12 +25,19 @@ module RailsDoctor
           score: score,
           grade: grade,
           counts: counts,
-          diagnostics: diagnostics.map(&:to_h)
+          stats: {
+            total_findings: result.diagnostics.size,
+            scanned_files: result.scanned_files,
+            affected_files: result.diagnostics.map(&:file).compact.uniq.size,
+            elapsed_ms: result.elapsed_ms,
+            external_tools: result.external
+          },
+          diagnostics: result.diagnostics.map(&:to_h)
         }
       end
 
       def counts
-        diagnostics.group_by(&:severity).transform_values(&:size)
+        result.diagnostics.group_by(&:severity).transform_values(&:size)
       end
     end
   end

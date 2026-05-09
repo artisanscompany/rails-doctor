@@ -22,12 +22,13 @@ module RailsDoctor
         raise NotImplementedError
       end
 
-      def emit(diagnostics, rule_id, message:, file: nil, line: nil)
+      def emit(diagnostics, rule_id, message:, file: nil, line: nil, fix: nil)
         rule = Registry.fetch(rule_id)
         diagnostics << Diagnostic.new(
           rule_id: rule_id,
           severity: rule.default_severity,
           message: message,
+          fix: fix || rule.default_fix,
           file: relative(file),
           line: line,
           category: rule.category,

@@ -6,19 +6,12 @@ require_relative "reporters/json"
 require_relative "reporters/markdown"
 
 module RailsDoctor
-  # Stdlib-only CLI (no Thor) so rails-doctor runs on any Ruby installation
-  # without `bundle install`. Mirrors react-doctor's UX:
-  #   rails-doctor scan [path] [flags]
-  #   rails-doctor install [--dry-run] [--yes]
-  #   rails-doctor explain <rule-id>
-  #   rails-doctor rules
-  #   rails-doctor version
   module CLI
     USAGE = <<~USAGE
       Usage: rails-doctor <command> [options]
 
       Commands:
-        scan [path]         Scan a Rails project (default command if path is given)
+        scan [path]         Scan a Rails project (default if first arg is a path)
         install             Install rails-doctor as a skill in detected coding agents
         explain <rule-id>   Show docs for a rule
         rules               List all rules
@@ -38,7 +31,6 @@ module RailsDoctor
       when "version", "-v", "--version" then puts "rails-doctor #{RailsDoctor::VERSION}"
       when "help", "-h", "--help", nil  then puts USAGE
       else
-        # If the first arg looks like a path, treat as `scan PATH`
         if File.directory?(command) || command == "."
           argv.unshift(command)
           Scan.run(argv)
@@ -67,7 +59,11 @@ module RailsDoctor
           with_external: "auto",
           no_color: false,
           verbose: false,
-          min_score: nil
+          full: false,
+          score_only: false,
+          min_score: nil,
+          fail_on: "none",
+          diff: nil
         }
         path = "."
 
@@ -76,11 +72,15 @@ module RailsDoctor
           o.on("--json")               { options[:json] = true }
           o.on("--markdown")           { options[:markdown] = true }
           o.on("--strict")             { options[:strict] = true }
+          o.on("--verbose")            { options[:verbose] = true }
+          o.on("--full")               { options[:full] = true }
+          o.on("--score")              { options[:score_only] = true }
           o.on("--preset PRESET")      { |v| options[:preset] = v }
           o.on("--with-external MODE") { |v| options[:with_external] = v }
           o.on("--no-color")           { options[:no_color] = true }
-          o.on("-v", "--verbose")      { options[:verbose] = true }
           o.on("--min-score N", Integer) { |v| options[:min_score] = v }
+          o.on("--fail-on LEVEL")      { |v| options[:fail_on] = v }
+          o.on("--diff [BASE]")        { |v| options[:diff] = v || "main" }
         end
         positional = parser.parse(argv)
         path = positional.first if positional.first
@@ -98,11 +98,18 @@ module RailsDoctor
           verbose: options[:verbose],
           with_external: external_mode(options[:with_external])
         }
-        diagnostics = Runner.new(project, config: config, options: runner_opts).run
-        diagnostics = promote_to_errors(diagnostics) if options[:strict]
+        runner_opts[:diff_files] = compute_diff_files(project, options[:diff]) if options[:diff]
 
-        score = Score.compute(diagnostics)
+        result = Runner.new(project, config: config, options: runner_opts).run
+        result.diagnostics.replace(promote_to_errors(result.diagnostics)) if options[:strict]
+
+        score = Score.compute(result.diagnostics)
         grade = Score.grade(score)
+
+        if options[:score_only]
+          puts score
+          exit_with_policy(score, options, result.diagnostics)
+        end
 
         reporter_class =
           if options[:json]     then Reporters::Json
@@ -111,12 +118,21 @@ module RailsDoctor
           end
 
         reporter_class.new(
-          project: project, diagnostics: diagnostics,
+          project: project, result: result,
           score: score, grade: grade,
-          options: { no_color: options[:no_color] }
+          options: { no_color: options[:no_color], verbose: options[:verbose], full: options[:full] }
         ).render
 
+        exit_with_policy(score, options, result.diagnostics)
+      end
+
+      def self.exit_with_policy(score, options, diagnostics)
         exit 1 if options[:min_score] && score < options[:min_score]
+        case options[:fail_on]
+        when "error"   then exit 1 if diagnostics.any? { |d| d.severity == :error }
+        when "warning" then exit 1 if diagnostics.any? { |d| %i[error warning].include?(d.severity) }
+        end
+        exit 0
       end
 
       def self.override_preset(config, preset)
@@ -141,6 +157,13 @@ module RailsDoctor
         when "all"                then :all
         else                           true
         end
+      end
+
+      # Returns a list of repo-relative paths (or nil to skip diff filtering).
+      def self.compute_diff_files(project, base)
+        out = `cd "#{project.root}" && git diff --name-only "#{base}"...HEAD 2>/dev/null && git diff --name-only --cached 2>/dev/null && git diff --name-only 2>/dev/null`
+        files = out.lines.map(&:strip).reject(&:empty?).uniq
+        files.empty? ? nil : files
       end
     end
 
@@ -167,6 +190,7 @@ module RailsDoctor
         puts "#{rule.id}  (#{rule.category}, default: #{rule.default_severity})"
         puts rule.title
         puts ""
+        puts "Fix: #{rule.default_fix}" if rule.default_fix
         puts rule.description if rule.description
         puts rule.doc_url    if rule.doc_url
       rescue Error => e

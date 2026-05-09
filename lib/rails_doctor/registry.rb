@@ -27,14 +27,15 @@ module RailsDoctor
     class << self
       attr_reader :rules
 
-      def define(id, title:, category:, default_severity: :warning, doc_url: nil, description: nil)
+      def define(id, title:, category:, default_severity: :warning, doc_url: nil, description: nil, fix: nil)
         rule = Rule.new(
           id: id,
           title: title,
           category: category,
           default_severity: default_severity,
           doc_url: doc_url,
-          description: description
+          description: description,
+          default_fix: fix
         )
         @rules[id] = rule
         rule
