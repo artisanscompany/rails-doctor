@@ -47,7 +47,7 @@ module RailsDoctor
             inner = Dir.glob(File.join(dir, "*.rb"))
             next if inner.empty?
             emit(diagnostics, :"arch/concerns-deep-dir",
-              message: "Concerns nested under `app/models/concerns/#{File.basename(dir)}/`. Move them to `app/models/#{File.basename(dir)}/` and namespace as `module #{File.basename(dir).capitalize}::Trait`.",
+              message: "Concerns nested under `app/models/concerns/#{File.basename(dir)}/`.",
               file: relative(dir)
             )
           end

@@ -31,7 +31,7 @@ module RailsDoctor
             verb_in_path = (route_path.split("/") + [action].compact).any? { |seg| VERB_KEYWORDS.include?(seg.to_s.downcase) }
             if verb_in_path
               emit(diagnostics, :"routes/verbs-not-nouns",
-                message: "Custom verb route detected. Convert to a noun: e.g. POST /things/:id/publish becomes `resource :publication, only: :create`.",
+                message: "Custom verb route detected.",
                 file: "config/routes.rb",
                 line: lineno
               )

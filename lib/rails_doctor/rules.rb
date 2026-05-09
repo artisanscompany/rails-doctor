@@ -248,6 +248,36 @@ module RailsDoctor
     default_severity: :info,
     fix: "Move JSON endpoints under `app/controllers/api/` and `app/views/api/` so the HTML and API surfaces evolve independently."
 
+  R.define :"views/view-too-large",
+    title: "View template is too large",
+    category: :views,
+    default_severity: :info,
+    fix: "Extract sections into partials. Long views are hard to read and to broadcast as Turbo Streams."
+
+  R.define :"i18n/missing-translation",
+    title: "Translation key is referenced but not defined",
+    category: :i18n,
+    default_severity: :warning,
+    fix: "Add the key to config/locales/<lang>.yml or use a different key. Missing translations render as 'translation missing: …' in production."
+
+  R.define :"i18n/unused-translation",
+    title: "Translation key is defined but never used",
+    category: :i18n,
+    default_severity: :info,
+    fix: "Remove the key (and its translations) so locale files don't accumulate dead entries."
+
+  R.define :"hotwire/stimulus-mismatched-controller",
+    title: "Stimulus controller filename doesn't match its data-controller usage",
+    category: :hotwire,
+    default_severity: :warning,
+    fix: "Stimulus expects `foo_bar_controller.js` ↔ `data-controller=\"foo-bar\"`. Rename one to match."
+
+  R.define :"hotwire/turbo-frame-id-naming",
+    title: "Turbo frame id is hardcoded instead of derived from a record",
+    category: :hotwire,
+    default_severity: :info,
+    fix: "Use `turbo_frame_tag(record)` so the id stays in sync with `dom_id(record)` for stream broadcasts."
+
   R.define :"stimulus/file-naming",
     title: "Stimulus controller filename should end in _controller.js",
     category: :views,

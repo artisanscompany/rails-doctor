@@ -44,7 +44,7 @@ module RailsDoctor
               col = m[1]
               if BOOLEAN_STATE_NAMES.include?(col)
                 emit(diagnostics, :"db/boolean-state-column",
-                  message: "Boolean column `#{col}`. State as records: replace with a relationship (e.g. `has_one :#{noun_for(col)}`) and capture who/when/why.",
+                  message: "Boolean column `#{col}` encodes state as a flag.",
                   file: rel,
                   line: lineno
                 )

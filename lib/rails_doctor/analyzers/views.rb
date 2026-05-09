@@ -30,6 +30,21 @@ module RailsDoctor
         check_dom_id_string_literals(diagnostics)
         check_stimulus(diagnostics)
         check_api_drift(diagnostics)
+        check_view_size(diagnostics)
+      end
+
+      VIEW_LOC_LIMIT = 150
+
+      def check_view_size(diagnostics)
+        return unless project.has_dir?("app/views")
+        Dir.glob(project.path("app/views/**/*.erb").to_s).each do |file|
+          loc = File.read(file).each_line.count { |l| l.strip != "" && !l.strip.start_with?("<%#") }
+          next unless loc > VIEW_LOC_LIMIT
+          emit(diagnostics, :"views/view-too-large",
+            message: "#{relative(file)} is #{loc} lines.",
+            file: relative(file)
+          )
+        end
       end
 
       def check_resource_partials(diagnostics)
