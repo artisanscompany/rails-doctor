@@ -42,6 +42,23 @@ module RailsDoctor
           end
 
           check_n_plus_one_loop(diagnostics, file, rel)
+          check_perform_now(diagnostics, file, rel)
+        end
+      end
+
+      # Job.perform_now in a controller blocks the request thread on whatever
+      # the job does — defeats the purpose of having a job. We allow it in
+      # rake tasks and tests, just not controllers.
+      def check_perform_now(diagnostics, file, rel)
+        File.foreach(file).with_index(1) do |line, lineno|
+          if line.match?(/\b\w+Job\.perform_now\b/)
+            emit(diagnostics, :"jobs/perform-now-in-controller",
+              message: "perform_now in a controller blocks the request thread. Use perform_later (or perform_async for Sidekiq) so the response goes out fast.",
+              file: rel,
+              line: lineno
+            )
+            break
+          end
         end
       end
 

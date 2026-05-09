@@ -338,6 +338,12 @@ module RailsDoctor
     default_severity: :info,
     fix: "Replace create(:foo) with build_stubbed(:foo) when the test doesn't need DB persistence — typically 10–100× faster."
 
+  R.define :"jobs/perform-now-in-controller",
+    title: "Job.perform_now from a controller blocks the request",
+    category: :jobs,
+    default_severity: :warning,
+    fix: "Use perform_later (Active Job) — the request returns immediately and the work runs in a worker."
+
   R.define :"perf/n-plus-one-loop",
     title: "Controller loops over a collection and reaches into associations",
     category: :performance,
