@@ -66,6 +66,19 @@ module RailsDoctor
           elsif source.match?(/create_table\b/) then pk_kinds << :bigint
           end
 
+          # null: false without default — when adding a column to an existing
+          # table, this fails on rows that already exist. We can only detect
+          # this from the migration source. Skip create_table blocks (where
+          # null: false is fine because the table is empty).
+          source.scan(/^\s*add_column\s+:\w+,\s+:(\w+),\s+:(\w+)([^\n]*)$/).each do |col, type, opts|
+            next unless opts.include?("null: false")
+            next if opts.include?("default:")
+            emit(diagnostics, :"migrations/null-false-without-default",
+              message: "add_column :#{col} (#{type}) with `null: false` and no `default:`. This fails on existing rows.",
+              file: rel
+            )
+          end
+
           # _id columns without foreign-key constraint (rough)
           source.scan(/t\.bigint\s+["']?(\w+)_id["']?/).each do |(name)|
             next if source.include?("foreign_key: { to_table:") || source.match?(/add_foreign_key\s+["']\S+["'],\s+["']?#{name}/)

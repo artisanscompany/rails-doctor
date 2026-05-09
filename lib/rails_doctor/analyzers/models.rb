@@ -149,6 +149,34 @@ module RailsDoctor
             file: rel
           )
         end
+
+        # enum without prefix:/suffix: — Rails will define `<value>?` and
+        # `<value>!` on the model; multiple enums collide.
+        source.scan(/^\s*enum\s+(?:[:\w]+\s*[:=]\s*)?[^\n]*$/).each do |line|
+          line_str = line.is_a?(Array) ? line.first : line
+          # Skip when prefix:/suffix: are explicit, or when the new Rails 8
+          # `enum :state, [...]` form is used with prefix: somewhere on the line.
+          next if line_str.include?("prefix:") || line_str.include?("suffix:")
+          # Only emit when at least one enum value is short/common enough to
+          # collide with other models' methods (active, draft, published, …).
+          next unless line_str.match?(/\b(?:active|draft|published|archived|pending|approved|rejected|new|paid|complete|failed)\b/)
+          emit(diagnostics, :"models/enum-without-prefix-suffix",
+            message: "enum without prefix:/suffix:. Generated `<value>?` / `<value>!` methods can collide with other enums or model methods.",
+            file: rel
+          )
+        end
+
+        # serialize without coder — Rails 7+ deprecates implicit YAML; flag
+        # `serialize :foo` without a 2nd argument or `coder:` keyword.
+        source.scan(/^\s*serialize\s+:(\w+)([^\n]*)$/).each do |name, rest|
+          next if rest.match?(/,\s*[A-Z]\w*/) # `serialize :foo, JSON` (positional coder)
+          next if rest.include?("coder:")
+          next if rest.include?("type:")
+          emit(diagnostics, :"models/serialize-without-coder",
+            message: "serialize :#{name} relies on default YAML deserialization. In Rails 7+ pass an explicit coder: (e.g. `serialize :#{name}, coder: JSON`).",
+            file: rel
+          )
+        end
       end
 
       def schema_lacks_unique_for?(file, column)

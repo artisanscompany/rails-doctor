@@ -296,6 +296,24 @@ module RailsDoctor
     default_severity: :warning,
     fix: "Use placeholders: `where(\"name = ?\", value)` or named binds `where(\"name = :n\", n: value)`."
 
+  R.define :"models/enum-without-prefix-suffix",
+    title: "enum declared without prefix:/suffix:",
+    category: :models,
+    default_severity: :info,
+    fix: "Add `prefix: true` or `suffix: true` so the generated `<value>?` and `<value>!` methods don't collide across enums."
+
+  R.define :"models/serialize-without-coder",
+    title: "serialize without explicit coder argument",
+    category: :models,
+    default_severity: :warning,
+    fix: "In Rails 7+ pass an explicit coder: `serialize :foo, coder: JSON` (or YAML for legacy data)."
+
+  R.define :"migrations/null-false-without-default",
+    title: "add_column null: false without default — breaks existing rows",
+    category: :migrations,
+    default_severity: :warning,
+    fix: "Either add `default:` or split into two migrations: add the column, backfill values, then change_column_null."
+
   R.define :"models/has-many-without-dependent",
     title: "has_many without `dependent:` option",
     category: :models,
