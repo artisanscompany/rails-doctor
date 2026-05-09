@@ -1,6 +1,6 @@
 {
   "name": "rails-doctor",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "Your agent writes bad Rails. This catches it. A static-analysis CLI for Ruby on Rails that scores your codebase 0-100 and installs as an agent skill for Claude Code, Codex, Cursor, and Copilot.",
   "keywords": [
     "rails",

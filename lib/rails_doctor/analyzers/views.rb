@@ -38,6 +38,11 @@ module RailsDoctor
       def check_view_size(diagnostics)
         return unless project.has_dir?("app/views")
         Dir.glob(project.path("app/views/**/*.erb").to_s).each do |file|
+          # Inertia layouts are typically a single file (inertia.html.erb) and
+          # legitimately small — skip them. Mailers also tend to grow with
+          # transactional content; let those be.
+          next if project.inertia? && File.basename(file) =~ /^(?:inertia|application)\.html\.erb$/
+          next if file.include?("/mailer")
           loc = File.read(file).each_line.count { |l| l.strip != "" && !l.strip.start_with?("<%#") }
           next unless loc > VIEW_LOC_LIMIT
           emit(diagnostics, :"views/view-too-large",
@@ -49,6 +54,7 @@ module RailsDoctor
 
       def check_resource_partials(diagnostics)
         return unless project.has_dir?("app/views")
+        return if project.inertia?  # Inertia apps render via React, not ERB partials.
         # For each `app/views/<plural>/index.html.erb`, check that
         # `_<singular>.html.erb` exists in the same directory.
         Dir.glob(project.path("app/views/*/index.html.erb").to_s).each do |index|
@@ -70,6 +76,7 @@ module RailsDoctor
 
       def check_dom_id_string_literals(diagnostics)
         return unless project.has_dir?("app/views")
+        return if project.inertia?  # dom_id is a Hotwire/Turbo concept.
         Dir.glob(project.path("app/views/**/*.erb").to_s).each do |file|
           File.foreach(file).with_index(1) do |line, lineno|
             if line.match?(/id="[a-z]+_<%=\s*\w+\.id\s*%>"/)

@@ -314,6 +314,24 @@ module RailsDoctor
     default_severity: :warning,
     fix: "Either add `default:` or split into two migrations: add the column, backfill values, then change_column_null."
 
+  R.define :"config/dev-flag-in-production",
+    title: "Development-only flag set in production.rb",
+    category: :config,
+    default_severity: :error,
+    fix: "Remove the flag from production.rb or guard it with `if Rails.env.development?`. Leaking dev flags to production exposes stack traces or breaks code reloading."
+
+  R.define :"inertia/heavy-shared-props",
+    title: "inertia_share block performs database work on every request",
+    category: :inertia,
+    default_severity: :warning,
+    fix: "Move per-page queries into the controller's `props:` hash. inertia_share runs on every request — keep it cheap (auth state, locale, flash)."
+
+  R.define :"inertia/render-without-props",
+    title: "render inertia: \"Page\" with no explicit props hash",
+    category: :inertia,
+    default_severity: :info,
+    fix: "Pass `props: { … }` explicitly so the page's data contract is visible at the call site."
+
   R.define :"models/has-many-without-dependent",
     title: "has_many without `dependent:` option",
     category: :models,
